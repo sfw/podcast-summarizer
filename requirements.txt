@@ -1,0 +1,6 @@
+# Minimum Python version: 3.10+
+openai>=0.27.0
+gradio>=3.26.0
+pydub>=0.25.1
+requests>=2.27.0
+python-dotenv>=0.20.0
