@@ -20,6 +20,7 @@ A, mostly built by AI, Python-based tool that:
 ## Requirements
 -	Python 3.10+
 -	See requirements.txt for package versions.
+-	OpenAI API account + credits
 
 ## Setup
 1.	Clone or download this repository.
