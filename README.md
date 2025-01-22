@@ -36,6 +36,7 @@ OPENAI_API_KEY=sk-123abc...
 ```
 
 4.	Install ffmpeg if you haven’t (pydub requires ffmpeg to process most audio formats).
+5.	Update default OpenAI prompts + change model to preferred
 
 ## Usage
 1.	Run the script:
