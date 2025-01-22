@@ -36,7 +36,7 @@ OPENAI_API_KEY=sk-123abc...
 
 4.	Install ffmpeg if you haven’t (pydub requires ffmpeg to process most audio formats).
 
-Usage
+# Usage
 1.	Run the script:
 
 python podcast-summarizer.py
@@ -45,14 +45,14 @@ python podcast-summarizer.py
 2.	You’ll see console output like:
 
 Running on local URL:  http://127.0.0.1:7860
-1.	Open the link in your browser to access the Gradio interface.
-2.	Upload one or more audio files.
-3.	Optionally edit the prompts for Summary, Keywords, and Titles.
-4.	Click “Process” to start transcription and GPT generation.
-5.	Once complete, you can download the outputs as a ZIP via the link in the status field.
+3.	Open the link in your browser to access the Gradio interface.
+4.	Upload one or more audio files.
+5.	Optionally edit the prompts for Summary, Keywords, and Titles.
+6.	Click “Process” to start transcription and GPT generation.
+7.	Once complete, you can download the outputs as a ZIP via the link in the status field.
 
 Repository Structure
--	podcast_summarizer.py – Main Python script with Gradio UI.
+- podcast_summarizer.py – Main Python script with Gradio UI.
 - requirements.txt – List of required Python packages.
 - .env – (Not committed) Contains OPENAI_API_KEY or other secrets.
 - .gitignore – (Recommended) to ignore .env and other local files.
