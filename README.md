@@ -6,9 +6,9 @@ A, mostly built by AI, Python-based tool that:
 1.	**Splits** large audio files into ~25 MB chunks.
 2.	**Transcribes** each chunk using OpenAI Whisper.
 3.	Optionally uses ChatGPT to generate:
-   •	**Summaries**
-	•	**Keywords**
-	•	**Titles**
+	- **Summaries**
+	- **Keywords**
+	- **Titles**
 4.	**Saves** each output in a structured folder and displays them in a Gradio UI with tabs.
 
 ## Features
