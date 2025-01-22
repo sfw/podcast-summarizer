@@ -38,6 +38,42 @@ OPENAI_API_KEY=sk-123abc...
 4.	Install ffmpeg if you haven’t (pydub requires ffmpeg to process most audio formats).
 5.	Update default OpenAI prompts + change model to preferred
 
+```
+        with gr.Column():
+  	       summary_prompt_text = gr.Textbox(
+                label="Summary Prompt",
+                value=(
+                    "Provide me a summarized description of this transcript from a podcast episode "
+                    "for a video description. Make the length reasonable but as long as you need to "
+                    "be detailed. Focus on including keywords in the summary that would impact SEO, "
+                    "but do not add a separate list of explicit keywords. Return plain text, no markdown, "
+                    "no bold text.\n\n"
+		    "Also, be aware the proper spelling for the two hosts' names are "
+                    "Jordan Bloemen and Scott Francis Winder."
+                ),
+                lines=8
+            )
+        with gr.Column():
+            keywords_prompt_text = gr.Textbox(
+                label="Keywords Prompt",
+                value=(
+                    "From the following transcript, provide a comma-separated list of top relevant keywords "
+                    "that would improve SEO. Focus on main subjects and terms. Return plain text, no markdown, "
+		    "no bold text."
+                ),
+                lines=8
+            )
+        with gr.Column():
+            titles_prompt_text = gr.Textbox(
+                label="Titles Prompt",
+                value=(
+                    "Provide five short video thumbnail title recommendations (max 6 words each) "
+                    "from this transcript. Return plain text, no markdown, no bold text."
+                ),
+                lines=8
+            )
+```
+
 ## Usage
 1.	Run the script:
 ```
