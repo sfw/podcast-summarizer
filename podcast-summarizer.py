@@ -135,6 +135,7 @@ def process_audio_files(
   display: inline-block;
   box-sizing: border-box;
   word-wrap: break-word;
+  background: var(--block-background-fill);
 }
 .tab-content pre {
   white-space: pre-wrap;
@@ -143,7 +144,7 @@ def process_audio_files(
   overflow-x: auto;
 }
 .tab-content {
-  border: 1px solid #ddd;
+  border: 1px solid var(--input-background-fill);
   padding: 10px;
   display: none;
   position: relative;
@@ -153,11 +154,13 @@ input[type="radio"] {
   display: none !important;
 }
 input[type="radio"]:checked + label {
-  background: #ccc;
-  color: #000;
+  background: var(--input-background-fill);
+  color: #fff;
 }
 input[type="radio"]:checked + label + .tab-content {
   display: block;
+  background: var(--input-background-fill);
+  color: #fff;
 }
 </style>
 """
@@ -197,7 +200,7 @@ input[type="radio"]:checked + label + .tab-content {
             (folder_path / "transcript.txt").write_text(final_transcript, encoding="utf-8")
 
             # (3) Summaries, Keywords, Titles, Shorts (conditionally)
-            model_engine = "o1-mini"
+            model_engine = "gpt-4"  # Updated to a more common model; adjust as needed
 
             # SUMMARY
             try:
@@ -289,32 +292,39 @@ input[type="radio"]:checked + label + .tab-content {
             content_html = f"""
     <h3>Transcript</h3>
     <pre>{final_transcript}</pre>
-    {"<h3>Summary</h3><pre>"+ summarized_description + "</pre>" if "Summary" in selected_options else ""}
-    {"<h3>SEO Keywords</h3><pre>"+ seo_keywords + "</pre>" if "Keywords" in selected_options else ""}
-    {"<h3>Video Thumbnail Titles</h3><pre>"+ video_titles + "</pre>" if "Titles" in selected_options else ""}
-    {"<h3>Shorts</h3><pre>"+ shorts_sections + "</pre>" if "Shorts" in selected_options else ""}
+    {"<h3>Summary</h3><pre>" + summarized_description + "</pre>" if "Summary" in selected_options else ""}
+    {"<h3>SEO Keywords</h3><pre>" + seo_keywords + "</pre>" if "Keywords" in selected_options else ""}
+    {"<h3>Video Thumbnail Titles</h3><pre>" + video_titles + "</pre>" if "Titles" in selected_options else ""}
+    {"<h3>Shorts</h3><pre>" + shorts_sections + "</pre>" if "Shorts" in selected_options else ""}
     <p><em>Outputs also saved in: {folder_path}</em></p>
     """
 
-        checked = "checked" if i == 0 else ""
-        html_tabs.append(f'<input type="radio" id="{tab_id}" name="tabs" {checked}>')
-        html_tabs.append(f'<label for="{tab_id}">{Path(local_path).name}</label>')
-        html_tabs.append(f'<div class="tab-content">{content_html}</div>')
+            # Add Radio + Label + Content to html_tabs
+            checked = "checked" if i == 0 else ""
+            html_tabs.append(f'<input type="radio" id="{tab_id}" name="tabs" {checked}>')
+            html_tabs.append(f'<label for="{tab_id}">{Path(local_path).name}</label>')
+            html_tabs.append(f'<div class="tab-content">{content_html}</div>')
 
-        html_tabs.append("</div>")  # close .tab-buttons
-        html_tabs.append("</div>")  # close .tab-container
+    # Close the tab-buttons and tab-container divs after the loop
+    html_tabs.append("</div>")  # close .tab-buttons
+    html_tabs.append("</div>")  # close .tab-container
 
-        # Zip the entire parent folder
-        zip_path = shutil.make_archive(parent_folder.name, "zip", parent_folder)
-        download_link = f'<a href="file://{os.path.abspath(zip_path)}" download>Download Zip</a>'
+    # Zip the entire parent folder
+    zip_path = shutil.make_archive(parent_folder.name, "zip", parent_folder)
+    zip_file = zip_path + ".zip"
 
-        full_html = css_and_script + "\n".join(html_tabs)
-        yield f"Processing complete, rendering HTML - Download the files: {download_link}", full_html
+    # Generate a download link using Gradio's file component
+    download_link = f'<a href="file://{os.path.abspath(zip_file)}" download>Download ZIP</a>'
+
+    # Combine CSS, HTML tabs, and download link
+    full_html = css_and_script + "\n".join(html_tabs) + f"<br/><br/><p>{download_link}</p>"
+
+    yield f"Processing complete, rendering HTML - Download the files: {download_link}", full_html
 
 ##############################
 # Gradio App
 ##############################
-with gr.Blocks(css=".footer.light {display: none !important;}") as demo:
+with gr.Blocks(css=".footer.light {display: none !important;}", title="Podcast Audio Summarizer", theme=gr.themes.Soft()) as demo:
     gr.Markdown(
         "# Podcast Audio Summarizer\n"
         "Upload any number of files, each file gets its own tab and every batch is "
@@ -352,7 +362,7 @@ with gr.Blocks(css=".footer.light {display: none !important;}") as demo:
                     "Also, be aware the proper spelling for the two hosts' names are "
                     "Jordan Bloemen and Scott Francis Winder."
                 ),
-                lines=8
+                lines=16
             )
         with gr.Column(min_width=240):
             keywords_prompt_text = gr.Textbox(
@@ -361,7 +371,7 @@ with gr.Blocks(css=".footer.light {display: none !important;}") as demo:
                     "From the following transcript, provide a comma-separated list of top relevant keywords "
                     "that would improve SEO. Focus on main subjects and terms. Return plain text, no markdown, no bold text."
                 ),
-                lines=8
+                lines=16
             )
         with gr.Column(min_width=240):
             titles_prompt_text = gr.Textbox(
@@ -370,7 +380,7 @@ with gr.Blocks(css=".footer.light {display: none !important;}") as demo:
                     "Provide five short video thumbnail title recommendations (max 6 words each) "
                     "from this transcript. Return plain text, no markdown, no bold text."
                 ),
-                lines=8
+                lines=16
             )
         with gr.Column(min_width=240):
             shorts_prompt_text = gr.Textbox(
@@ -381,7 +391,7 @@ with gr.Blocks(css=".footer.light {display: none !important;}") as demo:
                     "will be understandable without the context of the complete episode but also interesting."
                     "Return plain text, no markdown, no bold text."
                 ),
-                lines=8
+                lines=16
             )
 
     status_box = gr.HTML(label="Status")
@@ -410,4 +420,4 @@ with gr.Blocks(css=".footer.light {display: none !important;}") as demo:
         outputs=submit_btn
     )
 
-demo.launch(share=True)
+demo.launch(share=True, pwa=True)
