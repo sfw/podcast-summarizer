@@ -25,7 +25,7 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 MAX_CHUNK_SIZE = 24 * 1024 * 1024  # ~24 MB
 
 # The user can select any combination of these in the UI:
-SELECTABLE_OPTIONS = ["Summary", "Keywords", "Titles"]
+SELECTABLE_OPTIONS = ["Summary", "Keywords", "Titles", "Shorts"]
 
 ##############################
 # Audio Splitting & Whisper
@@ -85,19 +85,20 @@ def process_audio_files(
     selected_options,
     summary_prompt_text,
     keywords_prompt_text,
-    titles_prompt_text
+    titles_prompt_text,
+    shorts_prompt_text
 ):
     """
     1. For each uploaded file:
        - Split into <25MB chunks
        - Whisper-translate them all
-       - Conditionally produce Summary, Keywords, Titles via Chat calls
+       - Conditionally produce Summary, Keywords, Titles, Shorts via Chat calls
          (based on 'selected_options'), using the user-provided prompt text
          plus the transcript at the end.
        - Save each output in a directory named after the file's base name
     2. Build a dynamic HTML snippet with a "tab" for each file
        (one tab containing that file's transcript, plus whichever of the
-       summary, keywords, or titles the user selected).
+       summary, keywords, titles, or shorts the user selected).
     3. Return:
        - status updates (via yield)
        - final HTML to display
@@ -110,6 +111,7 @@ def process_audio_files(
 
     css_and_script = """
 <style>
+/* Basic styling for the tab system */
 .tab-container {
   display: flex;
   flex-direction: column;
@@ -194,7 +196,7 @@ input[type="radio"]:checked + label + .tab-content {
             final_transcript = "\n".join(transcript_parts)
             (folder_path / "transcript.txt").write_text(final_transcript, encoding="utf-8")
 
-            # (3) Summaries, Keywords, Titles (conditionally)
+            # (3) Summaries, Keywords, Titles, Shorts (conditionally)
             model_engine = "o1-mini"
 
             # SUMMARY
@@ -261,30 +263,48 @@ input[type="radio"]:checked + label + .tab-content {
                 logger.error(video_titles)
                 yield video_titles, ""
 
+            # SHORTS
+            try:
+                if "Shorts" in selected_options:
+                    prompt_with_transcript = (
+                        shorts_prompt_text.strip() +
+                        f"\n\nTRANSCRIPT:\n{final_transcript}\n"
+                    )
+                    shorts_resp = client.chat.completions.create(
+                        model=model_engine,
+                        messages=[{"role": "user", "content": prompt_with_transcript}],
+                        temperature=1
+                    )
+                    shorts_sections = shorts_resp.choices[0].message.content.strip()
+                    (folder_path / "shorts.txt").write_text(shorts_sections, encoding="utf-8")
+                else:
+                    shorts_sections = "[Shorts were not generated]"
+            except Exception as e:
+                shorts_sections = f"[Error generating shorts: {e}]"
+                logger.error(shorts_sections)
+                yield shorts_sections, ""
+
             # (4) Build the HTML for the content of this tab
+            # Always show the transcript; conditionally show summary, keywords, titles, shorts:
             content_html = f"""
-<h3>Transcript</h3>
-<pre>{final_transcript}</pre>
-{"<h3>Summary</h3><pre>"+ summarized_description + "</pre>" if "Summary" in selected_options else ""}
-{"<h3>SEO Keywords</h3><pre>"+ seo_keywords + "</pre>" if "Keywords" in selected_options else ""}
-{"<h3>Video Thumbnail Titles</h3><pre>"+ video_titles + "</pre>" if "Titles" in selected_options else ""}
-<p><em>Outputs also saved in: {folder_path}</em></p>
-"""
+    <h3>Transcript</h3>
+    <pre>{final_transcript}</pre>
+    {"<h3>Summary</h3><pre>"+ summarized_description + "</pre>" if "Summary" in selected_options else ""}
+    {"<h3>SEO Keywords</h3><pre>"+ seo_keywords + "</pre>" if "Keywords" in selected_options else ""}
+    {"<h3>Video Thumbnail Titles</h3><pre>"+ video_titles + "</pre>" if "Titles" in selected_options else ""}
+    {"<h3>Shorts</h3><pre>"+ shorts_sections + "</pre>" if "Shorts" in selected_options else ""}
+    <p><em>Outputs also saved in: {folder_path}</em></p>
+    """
 
-        checked = "checked" if i == 0 else ""
-        html_tabs.append(f'<input type="radio" id="{tab_id}" name="tabs" {checked}>')
-        html_tabs.append(f'<label for="{tab_id}">{Path(local_path).name}</label>')
-        html_tabs.append(f'<div class="tab-content">{content_html}</div>')
+        html_tabs.append("</div>")  # close .tab-buttons
+        html_tabs.append("</div>")  # close .tab-container
 
-    html_tabs.append("</div>")  # close .tab-buttons
-    html_tabs.append("</div>")  # close .tab-container
+        # Zip the entire parent folder
+        zip_path = shutil.make_archive(parent_folder.name, "zip", parent_folder)
+        download_link = f'<a href="file://{os.path.abspath(zip_path)}" download>Download Zip</a>'
 
-    # Zip the entire parent folder
-    zip_path = shutil.make_archive(parent_folder.name, "zip", parent_folder)
-    download_link = f'<a href="file://{os.path.abspath(zip_path)}" download>Download Zip</a>'
-
-    full_html = css_and_script + "\n".join(html_tabs)
-    yield f"Processing complete, rendering HTML - Download the files: {download_link}", full_html
+        full_html = css_and_script + "\n".join(html_tabs)
+        yield f"Processing complete, rendering HTML - Download the files: {download_link}", full_html
 
 ##############################
 # Gradio App
@@ -300,21 +320,23 @@ with gr.Blocks(css=".footer.light {display: none !important;}") as demo:
         audio_input = gr.File(
             label="Upload Audio Files",
             file_count="multiple",
-            type="filepath"
+            type="filepath",
+            scale=3
         )
         selected_options = gr.CheckboxGroup(
             choices=SELECTABLE_OPTIONS,
-            value=["Summary", "Keywords", "Titles"],
-            label="Select Which Outputs"
+            value=["Summary", "Keywords", "Titles", "Shorts"],
+            label="Select Desired Outputs",
+            scale=1
         )
 
-    # Create a row with the "Process" button on top, then 3 columns of text fields
+    # Create a row with the "Process" button on top
     with gr.Row():
         submit_btn = gr.Button("Process")
 
-    # Under that row, we have 3 columns for the prompts
+    # Under that row, we have four columns for the prompts
     with gr.Row():
-        with gr.Column():
+        with gr.Column(min_width=240):
             summary_prompt_text = gr.Textbox(
                 label="Summary Prompt",
                 value=(
@@ -327,7 +349,7 @@ with gr.Blocks(css=".footer.light {display: none !important;}") as demo:
                 ),
                 lines=8
             )
-        with gr.Column():
+        with gr.Column(min_width=240):
             keywords_prompt_text = gr.Textbox(
                 label="Keywords Prompt",
                 value=(
@@ -336,12 +358,22 @@ with gr.Blocks(css=".footer.light {display: none !important;}") as demo:
                 ),
                 lines=8
             )
-        with gr.Column():
+        with gr.Column(min_width=240):
             titles_prompt_text = gr.Textbox(
                 label="Titles Prompt",
                 value=(
                     "Provide five short video thumbnail title recommendations (max 6 words each) "
                     "from this transcript. Return plain text, no markdown, no bold text."
+                ),
+                lines=8
+            )
+        with gr.Column(min_width=240):
+            shorts_prompt_text = gr.Textbox(
+                label="Shorts Prompt",
+                value=(
+                    "Here is a transcript for a podcast episode. Can you pull out three sections of it that "
+                    "would make good 10-15 second shorts or clips for social sharing. Focus on content that "
+                    "will be understandable without the context of the complete episode but also interesting."
                 ),
                 lines=8
             )
@@ -362,7 +394,8 @@ with gr.Blocks(css=".footer.light {display: none !important;}") as demo:
             selected_options,
             summary_prompt_text,
             keywords_prompt_text,
-            titles_prompt_text
+            titles_prompt_text,
+            shorts_prompt_text
         ],
         outputs=[status_box, html_output]
     ).then(
