@@ -109,4 +109,9 @@ Feel free to open issues or pull requests if you have improvements or suggestion
 
 MIT License
 
+# Acknowledgements
+- [Gradio](https://gradio.app/) for the user-friendly interface.
+- [OpenAI](https://openai.com/) for the Whisper and ChatGPT APIs.
+- [Pydub](https://github.com/jiaaro/pydub) for audio processing.
+
 # Happy summarizing!
