@@ -296,6 +296,11 @@ input[type="radio"]:checked + label + .tab-content {
     <p><em>Outputs also saved in: {folder_path}</em></p>
     """
 
+        checked = "checked" if i == 0 else ""
+        html_tabs.append(f'<input type="radio" id="{tab_id}" name="tabs" {checked}>')
+        html_tabs.append(f'<label for="{tab_id}">{Path(local_path).name}</label>')
+        html_tabs.append(f'<div class="tab-content">{content_html}</div>')
+
         html_tabs.append("</div>")  # close .tab-buttons
         html_tabs.append("</div>")  # close .tab-container
 
@@ -374,6 +379,7 @@ with gr.Blocks(css=".footer.light {display: none !important;}") as demo:
                     "Here is a transcript for a podcast episode. Can you pull out three sections of it that "
                     "would make good 10-15 second shorts or clips for social sharing. Focus on content that "
                     "will be understandable without the context of the complete episode but also interesting."
+                    "Return plain text, no markdown, no bold text."
                 ),
                 lines=8
             )
