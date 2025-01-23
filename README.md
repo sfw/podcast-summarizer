@@ -9,6 +9,7 @@ A, mostly built by AI, Python-based tool that:
 	- **Summaries**
 	- **Keywords**
 	- **Titles**
+ 	- **Short Clips** 
 4.	**Saves** each output in a structured folder and displays them in a Gradio UI with tabs.
 
 ## Features
@@ -39,36 +40,44 @@ OPENAI_API_KEY=sk-123abc...
 5.	Update default OpenAI prompts
 
 ```
-        with gr.Column():
-  	       summary_prompt_text = gr.Textbox(
+       with gr.Column(min_width=240):
+            summary_prompt_text = gr.Textbox(
                 label="Summary Prompt",
                 value=(
                     "Provide me a summarized description of this transcript from a podcast episode "
                     "for a video description. Make the length reasonable but as long as you need to "
                     "be detailed. Focus on including keywords in the summary that would impact SEO, "
-                    "but do not add a separate list of explicit keywords. Return plain text, no markdown, "
-                    "no bold text.\n\n"
-		    "Also, be aware the proper spelling for the two hosts' names are "
+                    "but do not add a separate list of explicit keywords. Return plain text, no markdown, no bold text.\n\n"
+                    "Also, be aware the proper spelling for the two hosts' names are "
                     "Jordan Bloemen and Scott Francis Winder."
                 ),
                 lines=8
             )
-        with gr.Column():
+        with gr.Column(min_width=240):
             keywords_prompt_text = gr.Textbox(
                 label="Keywords Prompt",
                 value=(
                     "From the following transcript, provide a comma-separated list of top relevant keywords "
-                    "that would improve SEO. Focus on main subjects and terms. Return plain text, no markdown, "
-		    "no bold text."
+                    "that would improve SEO. Focus on main subjects and terms. Return plain text, no markdown, no bold text."
                 ),
                 lines=8
             )
-        with gr.Column():
+        with gr.Column(min_width=240):
             titles_prompt_text = gr.Textbox(
                 label="Titles Prompt",
                 value=(
                     "Provide five short video thumbnail title recommendations (max 6 words each) "
                     "from this transcript. Return plain text, no markdown, no bold text."
+                ),
+                lines=8
+            )
+        with gr.Column(min_width=240):
+            shorts_prompt_text = gr.Textbox(
+                label="Shorts Prompt",
+                value=(
+                    "Here is a transcript for a podcast episode. Can you pull out three sections of it that "
+                    "would make good 10-15 second shorts or clips for social sharing. Focus on content that "
+                    "will be understandable without the context of the complete episode but also interesting."
                 ),
                 lines=8
             )
