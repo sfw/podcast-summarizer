@@ -4,7 +4,7 @@ Using AI to facilitate the BS tasks in my life - Part I
 A, mostly built by AI, Python-based tool that:
 
 1.	**Splits** large audio files into ~25 MB chunks.
-2.	**Transcribes** each chunk using OpenAI Whisper.
+2.	**Transcribes** each chunk using AssemblyAI for speaker identification but the code is commented out to use OpenAI whisper if you'd like.
 3.	Optionally uses ChatGPT to generate:
 	- **Summaries**
 	- **Keywords**
@@ -22,6 +22,7 @@ A, mostly built by AI, Python-based tool that:
 -	Python 3.10+
 -	See requirements.txt for package versions.
 -	OpenAI API account + credits
+-   Assembly API account + credits (optional)
 
 ## Setup
 1.	Clone or download this repository.
@@ -34,6 +35,7 @@ pip install -r requirements.txt
 
 ```
 OPENAI_API_KEY=sk-123abc...
+ASSEMBLYAI_API_KEY=12341234...
 ```
 
 4.	Install ffmpeg if you haven’t (pydub requires ffmpeg to process most audio formats).
@@ -122,5 +124,6 @@ MIT License
 - [Gradio](https://gradio.app/) for the user-friendly interface.
 - [OpenAI](https://openai.com/) for the Whisper and ChatGPT APIs.
 - [Pydub](https://github.com/jiaaro/pydub) for audio processing.
+- [AssemblyAI](https://www.assemblyai.com/) for audio transcription with speaker ID.
 
 # Happy summarizing!

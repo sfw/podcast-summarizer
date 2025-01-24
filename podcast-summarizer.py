@@ -4,6 +4,7 @@ import logging
 import shutil
 import tempfile
 import requests
+import assemblyai as aai
 import gradio as gr
 
 from datetime import datetime
@@ -17,6 +18,9 @@ from openai import OpenAI
 ##############################
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY")
+
+aai.settings.api_key = ASSEMBLYAI_API_KEY
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -28,7 +32,7 @@ MAX_CHUNK_SIZE = 24 * 1024 * 1024  # ~24 MB
 SELECTABLE_OPTIONS = ["Summary", "Keywords", "Titles", "Shorts"]
 
 ##############################
-# Audio Splitting & Whisper
+# Audio Splitting & Transcription
 ##############################
 def split_audio_to_chunks(audio_file_path: str, max_chunk_size_bytes: int) -> list[str]:
     logger.info(f"Splitting audio: {audio_file_path}")
@@ -58,24 +62,48 @@ def split_audio_to_chunks(audio_file_path: str, max_chunk_size_bytes: int) -> li
     logger.info(f"Split into {len(chunk_paths)} chunk(s).")
     return chunk_paths
 
-def whisper_translation_request(chunk_path: str) -> str:
-    if not OPENAI_API_KEY:
-        return "[Error: OPENAI_API_KEY not set.]"
+# OpenAI Whisper if Preferred
+# def transcription_request(chunk_path: str) -> str:
+#     if not OPENAI_API_KEY:
+#         return "[Error: OPENAI_API_KEY not set.]"
 
-    url = "https://api.openai.com/v1/audio/translations"
-    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
-    data = {"model": "whisper-1"}
+#     url = "https://api.openai.com/v1/audio/translations"
+#     headers = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
+#     data = {"model": "whisper-1"}
 
-    with open(chunk_path, "rb") as f:
-        files = {"file": (chunk_path, f, "application/octet-stream")}
-        try:
-            resp = requests.post(url, headers=headers, data=data, files=files)
-            resp.raise_for_status()
-            result = resp.json()
-            return result.get("text", "")
-        except requests.RequestException as e:
-            logger.error(f"Transcription request failed: {e}")
-            return f"[Error transcribing chunk: {e}]"
+#     with open(chunk_path, "rb") as f:
+#         files = {"file": (chunk_path, f, "application/octet-stream")}
+#         try:
+#             resp = requests.post(url, headers=headers, data=data, files=files)
+#             resp.raise_for_status()
+#             result = resp.json()
+#             return result.get("text", "")
+#         except requests.RequestException as e:
+#             logger.error(f"Transcription request failed: {e}")
+#             return f"[Error transcribing chunk: {e}]"
+
+def transcription_request(chunk_path: str) -> str:
+    if not ASSEMBLYAI_API_KEY:
+        return "[Error: ASSEMBLYAI_API_KEY not set.]"
+    
+    config = aai.TranscriptionConfig(speaker_labels=True)
+    transcriber = aai.Transcriber(config=config)
+    
+    try:
+        transcript = transcriber.transcribe(chunk_path)
+        transcript.wait_for_completion()  # Wait until transcription is complete
+        
+        result = ""
+        if hasattr(transcript, 'utterances') and transcript.utterances:
+            for utterance in transcript.utterances:
+                result += f"Speaker {utterance.speaker}: {utterance.text}\n\n"
+        else:
+            result = transcript.text
+        
+        return result
+    except Exception as e:
+        logger.error(f"Transcription request failed: {e}")
+        return f"[Error transcribing chunk: {e}]"
 
 ##############################
 # Main Processing Function
@@ -91,7 +119,7 @@ def process_audio_files(
     """
     1. For each uploaded file:
        - Split into <25MB chunks
-       - Whisper-translate them all
+       - Translate them all
        - Conditionally produce Summary, Keywords, Titles, Shorts via Chat calls
          (based on 'selected_options'), using the user-provided prompt text
          plus the transcript at the end.
@@ -189,8 +217,8 @@ input[type="radio"]:checked + label + .tab-content {
             for idx, cp in enumerate(chunk_paths, start=1):
                 logger.info(f"Transcribing {base_name}, chunk {idx}/{len(chunk_paths)}")
                 yield f"Transcribing {base_name}, chunk {idx}/{len(chunk_paths)}", ""
-                chunk_text = whisper_translation_request(cp)
-                transcript_parts.append(chunk_text)
+                chunk_text = transcription_request(cp)
+                transcript_parts.append(chunk_text or "")
                 try:
                     os.remove(cp)
                 except OSError:
@@ -200,7 +228,7 @@ input[type="radio"]:checked + label + .tab-content {
             (folder_path / "transcript.txt").write_text(final_transcript, encoding="utf-8")
 
             # (3) Summaries, Keywords, Titles, Shorts (conditionally)
-            model_engine = "gpt-4"  # Updated to a more common model; adjust as needed
+            model_engine = "o1-mini"  # Updated to a more common model; adjust as needed
 
             # SUMMARY
             try:
