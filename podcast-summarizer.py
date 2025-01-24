@@ -131,71 +131,72 @@ def process_audio_files(
        - status updates (via yield)
        - final HTML to display
     """
-    yield "Starting transcription...", ""
+    yield "Starting transcription...", "", None  # Initialize with None for the download link
+
     if not audio_file_paths or len(audio_file_paths) == 0:
-        return "<p>No files provided.</p>"
+        return "<p>No files provided.</p>", None, None
     if not OPENAI_API_KEY:
-        return "<p>OPENAI_API_KEY not set!</p>"
+        return "<p>OPENAI_API_KEY not set!</p>", None, None
 
     css_and_script = """
-<style>
-/* Basic styling for the tab system */
-.tab-container {
-  display: flex;
-  flex-direction: column;
-}
-.tab-buttons {
-  display: flex;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  max-width: 100%;
-}
-.tab-buttons label {
-  padding: 8px 12px;
-  margin-right: 4px;
-  cursor: pointer;
-  border-radius: 4px 4px 0 0;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  text-wrap: auto;
-  overflow: hidden;
-  max-width: 150px;
-  display: inline-block;
-  box-sizing: border-box;
-  word-wrap: break-word;
-  background: var(--block-background-fill);
-}
-.tab-content pre {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  max-width: 100%;
-  overflow-x: auto;
-}
-.tab-content {
-  border: 1px solid var(--input-background-fill);
-  padding: 10px;
-  display: none;
-  position: relative;
-  border-radius: 0 4px 4px 4px;
-}
-input[type="radio"] {
-  display: none !important;
-}
-input[type="radio"]:checked + label {
-  background: var(--input-background-fill);
-  color: #fff;
-}
-input[type="radio"]:checked + label + .tab-content {
-  display: block;
-  background: var(--input-background-fill);
-  color: #fff;
-}
-</style>
-"""
+    <style>
+    /* Basic styling for the tab system */
+    .tab-container {
+      display: flex;
+      flex-direction: column;
+    }
+    .tab-buttons {
+      display: flex;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      max-width: 100%;
+    }
+    .tab-buttons label {
+      padding: 8px 12px;
+      margin-right: 4px;
+      cursor: pointer;
+      border-radius: 4px 4px 0 0;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      text-wrap: auto;
+      overflow: hidden;
+      max-width: 150px;
+      display: inline-block;
+      box-sizing: border-box;
+      word-wrap: break-word;
+      background: var(--block-background-fill);
+    }
+    .tab-content pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      max-width: 100%;
+      overflow-x: auto;
+    }
+    .tab-content {
+      border: 1px solid var(--input-background-fill);
+      padding: 10px;
+      display: none;
+      position: relative;
+      border-radius: 0 4px 4px 4px;
+    }
+    input[type="radio"] {
+      display: none !important;
+    }
+    input[type="radio"]:checked + label {
+      background: var(--input-background-fill);
+      color: #fff;
+    }
+    input[type="radio"]:checked + label + .tab-content {
+      display: block;
+      background: var(--input-background-fill);
+      color: #fff;
+    }
+    </style>
+    """
 
     # 1) Build a parent folder name using the number of files and current date/time
     parent_name = f"Summarized-{len(audio_file_paths)}-{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-    parent_folder = Path(parent_name)
+    parent_folder = Path(parent_name).absolute()
     parent_folder.mkdir(exist_ok=True)
 
     html_tabs = ['<div class="tab-container">', '<div class="tab-buttons">']
@@ -212,11 +213,11 @@ input[type="radio"]:checked + label + .tab-content {
 
             # (1) Split
             chunk_paths = split_audio_to_chunks(local_path, MAX_CHUNK_SIZE)
-            # (2) Whisper
+            # (2) Transcription
             transcript_parts = []
             for idx, cp in enumerate(chunk_paths, start=1):
                 logger.info(f"Transcribing {base_name}, chunk {idx}/{len(chunk_paths)}")
-                yield f"Transcribing {base_name}, chunk {idx}/{len(chunk_paths)}", ""
+                yield f"Transcribing {base_name}, chunk {idx}/{len(chunk_paths)}", "", None
                 chunk_text = transcription_request(cp)
                 transcript_parts.append(chunk_text or "")
                 try:
@@ -227,13 +228,12 @@ input[type="radio"]:checked + label + .tab-content {
             final_transcript = "\n".join(transcript_parts)
             (folder_path / "transcript.txt").write_text(final_transcript, encoding="utf-8")
 
-            # (3) Summaries, Keywords, Titles, Shorts (conditionally)
-            model_engine = "o1-mini"  # Updated to a more common model; adjust as needed
+            # (3) Generate Outputs Conditionally
+            model_engine = "o1-mini"  # Adjust as needed
 
             # SUMMARY
             try:
                 if "Summary" in selected_options:
-                    # Combine user-provided prompt + transcript
                     prompt_with_transcript = (
                         summary_prompt_text.strip() +
                         f"\n\nTRANSCRIPT:\n{final_transcript}\n"
@@ -250,7 +250,7 @@ input[type="radio"]:checked + label + .tab-content {
             except Exception as e:
                 summarized_description = f"[Error generating summary: {e}]"
                 logger.error(summarized_description)
-                yield summarized_description, ""
+                yield summarized_description, "", None
 
             # KEYWORDS
             try:
@@ -271,7 +271,7 @@ input[type="radio"]:checked + label + .tab-content {
             except Exception as e:
                 seo_keywords = f"[Error generating keywords: {e}]"
                 logger.error(seo_keywords)
-                yield seo_keywords, ""
+                yield seo_keywords, "", None
 
             # TITLES
             try:
@@ -292,7 +292,7 @@ input[type="radio"]:checked + label + .tab-content {
             except Exception as e:
                 video_titles = f"[Error generating titles: {e}]"
                 logger.error(video_titles)
-                yield video_titles, ""
+                yield video_titles, "", None
 
             # SHORTS
             try:
@@ -313,19 +313,18 @@ input[type="radio"]:checked + label + .tab-content {
             except Exception as e:
                 shorts_sections = f"[Error generating shorts: {e}]"
                 logger.error(shorts_sections)
-                yield shorts_sections, ""
+                yield shorts_sections, "", None
 
             # (4) Build the HTML for the content of this tab
-            # Always show the transcript; conditionally show summary, keywords, titles, shorts:
             content_html = f"""
-    <h3>Transcript</h3>
-    <pre>{final_transcript}</pre>
-    {"<h3>Summary</h3><pre>" + summarized_description + "</pre>" if "Summary" in selected_options else ""}
-    {"<h3>SEO Keywords</h3><pre>" + seo_keywords + "</pre>" if "Keywords" in selected_options else ""}
-    {"<h3>Video Thumbnail Titles</h3><pre>" + video_titles + "</pre>" if "Titles" in selected_options else ""}
-    {"<h3>Shorts</h3><pre>" + shorts_sections + "</pre>" if "Shorts" in selected_options else ""}
-    <p><em>Outputs also saved in: {folder_path}</em></p>
-    """
+            <h3>Transcript</h3>
+            <pre>{final_transcript}</pre>
+            {"<h3>Summary</h3><pre>" + summarized_description + "</pre>" if "Summary" in selected_options else ""}
+            {"<h3>SEO Keywords</h3><pre>" + seo_keywords + "</pre>" if "Keywords" in selected_options else ""}
+            {"<h3>Video Thumbnail Titles</h3><pre>" + video_titles + "</pre>" if "Titles" in selected_options else ""}
+            {"<h3>Shorts</h3><pre>" + shorts_sections + "</pre>" if "Shorts" in selected_options else ""}
+            <p><em>Outputs also saved in: {folder_path}</em></p>
+            """
 
             # Add Radio + Label + Content to html_tabs
             checked = "checked" if i == 0 else ""
@@ -338,16 +337,17 @@ input[type="radio"]:checked + label + .tab-content {
     html_tabs.append("</div>")  # close .tab-container
 
     # Zip the entire parent folder
-    zip_path = shutil.make_archive(parent_folder.name, "zip", parent_folder)
-    zip_file = zip_path + ".zip"
+    zip_path = shutil.make_archive(str(parent_folder), "zip", parent_folder)
+    zip_file = Path(zip_path).absolute()
+    logger.info(f"ZIP file created at: {zip_file}")
 
-    # Generate a download link using Gradio's file component
-    download_link = f'<a href="file://{os.path.abspath(zip_file)}" download>Download ZIP</a>'
+    # Clean up the parent folder after zipping
+    shutil.rmtree(parent_folder)
 
-    # Combine CSS, HTML tabs, and download link
-    full_html = css_and_script + "\n".join(html_tabs) + f"<br/><br/><p>{download_link}</p>"
+    # Prepare the download link using Gradio's File component by returning the zip file path
+    full_html = css_and_script + "\n".join(html_tabs)
 
-    yield f"Processing complete, rendering HTML - Download the files: {download_link}", full_html
+    yield "Processing complete. Your files are ready for download below.", full_html, str(zip_file)
 
 ##############################
 # Gradio App
@@ -424,6 +424,7 @@ with gr.Blocks(css=".footer.light {display: none !important;}", title="Podcast A
 
     status_box = gr.HTML(label="Status")
     html_output = gr.HTML()
+    download_zip = gr.File(label="Download ZIP")  # Added Download ZIP component
 
     # We disable the button, call process_audio_files, then re-enable
     submit_btn.click(
@@ -441,7 +442,7 @@ with gr.Blocks(css=".footer.light {display: none !important;}", title="Podcast A
             titles_prompt_text,
             shorts_prompt_text
         ],
-        outputs=[status_box, html_output]
+        outputs=[status_box, html_output, download_zip]  # Updated outputs to include download_zip
     ).then(
         fn=lambda: gr.update(interactive=True),
         inputs=None,
