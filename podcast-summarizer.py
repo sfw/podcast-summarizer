@@ -373,9 +373,16 @@ with gr.Blocks(css=".footer.light {display: none !important;}", title="Podcast A
             scale=1
         )
 
-    # Create a row with the "Process" button on top
+   # Create a row with the "Process" button on top
     with gr.Row():
-        submit_btn = gr.Button("Process")
+        submit_btn = gr.Button("Process", interactive=False)  # Button initialized as disabled
+
+    # Enable the "Process" button after files are uploaded
+    audio_input.change(
+        fn=lambda files: gr.update(interactive=bool(files)),
+        inputs=audio_input,
+        outputs=submit_btn
+    )
 
     # Under that row, we have four columns for the prompts
     with gr.Row():
