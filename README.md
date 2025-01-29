@@ -89,6 +89,7 @@ ASSEMBLYAI_API_KEY=12341234...
 ```
 model_engine = "o1-mini"
 ```
+7. Change the transcription engine if you prefer. There are two engines in the code setup through two definitions of the *transcription_request* function. The uncommented version uses AssemblyAI to do speaker by speaker transcription and the commented out version doesn't but uses OpenAI's Whisper engine. Changing engines is as simple as commenting out the current function and uncommenting out the the other.
 
 ## Usage
 1.	Run the script:
