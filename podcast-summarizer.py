@@ -456,4 +456,4 @@ with gr.Blocks(css=".footer.light {display: none !important;}", title="Podcast A
         outputs=submit_btn
     )
 
-demo.launch(share=True, pwa=True)
+demo.launch(share=False, pwa=True)
