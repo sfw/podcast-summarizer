@@ -30,6 +30,7 @@ MAX_CHUNK_SIZE = 24 * 1024 * 1024  # ~24 MB
 
 # The user can select any combination of these in the UI:
 SELECTABLE_OPTIONS = ["Summary", "Keywords", "Titles", "Shorts"]
+TRANSCRIPTION_OPTIONS = ["AssemblyAI - Speaker ID", "OpenAI Whisper"]
 
 ##############################
 # Audio Splitting & Transcription
@@ -63,26 +64,26 @@ def split_audio_to_chunks(audio_file_path: str, max_chunk_size_bytes: int) -> li
     return chunk_paths
 
 # OpenAI Whisper if Preferred
-# def transcription_request(chunk_path: str) -> str:
-#     if not OPENAI_API_KEY:
-#         return "[Error: OPENAI_API_KEY not set.]"
+def transcription_request_whisper(chunk_path: str) -> str:
+    if not OPENAI_API_KEY:
+        return "[Error: OPENAI_API_KEY not set.]"
 
-#     url = "https://api.openai.com/v1/audio/translations"
-#     headers = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
-#     data = {"model": "whisper-1"}
+    url = "https://api.openai.com/v1/audio/translations"
+    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
+    data = {"model": "whisper-1"}
 
-#     with open(chunk_path, "rb") as f:
-#         files = {"file": (chunk_path, f, "application/octet-stream")}
-#         try:
-#             resp = requests.post(url, headers=headers, data=data, files=files)
-#             resp.raise_for_status()
-#             result = resp.json()
-#             return result.get("text", "")
-#         except requests.RequestException as e:
-#             logger.error(f"Transcription request failed: {e}")
-#             return f"[Error transcribing chunk: {e}]"
+    with open(chunk_path, "rb") as f:
+        files = {"file": (chunk_path, f, "application/octet-stream")}
+        try:
+            resp = requests.post(url, headers=headers, data=data, files=files)
+            resp.raise_for_status()
+            result = resp.json()
+            return result.get("text", "")
+        except requests.RequestException as e:
+            logger.error(f"Transcription request failed: {e}")
+            return f"[Error transcribing chunk: {e}]"
 
-def transcription_request(chunk_path: str) -> str:
+def transcription_request_assembly(chunk_path: str) -> str:
     if not ASSEMBLYAI_API_KEY:
         return "[Error: ASSEMBLYAI_API_KEY not set.]"
     
@@ -114,7 +115,8 @@ def process_audio_files(
     summary_prompt_text,
     keywords_prompt_text,
     titles_prompt_text,
-    shorts_prompt_text
+    shorts_prompt_text,
+    transcription_engine
 ):
     """
     1. For each uploaded file:
@@ -218,7 +220,11 @@ def process_audio_files(
             for idx, cp in enumerate(chunk_paths, start=1):
                 logger.info(f"Transcribing {base_name}, chunk {idx}/{len(chunk_paths)}")
                 yield f"Transcribing {base_name}, chunk {idx}/{len(chunk_paths)}", "", None
-                chunk_text = transcription_request(cp)
+                chunk_text=None;
+                if(transcription_engine==0):
+                    chunk_text = transcription_request_assembly(cp)
+                else:
+                    chunk_text = transcription_request_whisper(cp)
                 transcript_parts.append(chunk_text or "")
                 try:
                     os.remove(cp)
@@ -360,18 +366,25 @@ with gr.Blocks(css=".footer.light {display: none !important;}", title="Podcast A
         "you want generated and **edit** the prompt text for each option before processing."
     )
     with gr.Row():
-        audio_input = gr.File(
-            label="Upload Audio Files",
-            file_count="multiple",
-            type="filepath",
-            scale=3
-        )
-        selected_options = gr.CheckboxGroup(
-            choices=SELECTABLE_OPTIONS,
-            value=["Summary", "Keywords", "Titles", "Shorts"],
-            label="Select Desired Outputs",
-            scale=1
-        )
+        with gr.Column(scale=3):
+            audio_input = gr.File(
+                label="Upload Audio Files",
+                file_count="multiple",
+                type="filepath"
+            )
+        with gr.Column(scale=1):
+            selected_options = gr.CheckboxGroup(
+                choices=SELECTABLE_OPTIONS,
+                value=["Summary", "Keywords", "Titles", "Shorts"],
+                label="Select Desired Outputs"
+            )
+            transcription_engine = gr.Radio(
+                choices = TRANSCRIPTION_OPTIONS,
+                value = TRANSCRIPTION_OPTIONS[0],
+                label = "Transcription Engine",
+                interactive = True,
+                type = "index"
+            )
 
    # Create a row with the "Process" button on top
     with gr.Row():
@@ -447,7 +460,8 @@ with gr.Blocks(css=".footer.light {display: none !important;}", title="Podcast A
             summary_prompt_text,
             keywords_prompt_text,
             titles_prompt_text,
-            shorts_prompt_text
+            shorts_prompt_text,
+            transcription_engine
         ],
         outputs=[status_box, html_output, download_zip]  # Updated outputs to include download_zip
     ).then(
@@ -456,4 +470,4 @@ with gr.Blocks(css=".footer.light {display: none !important;}", title="Podcast A
         outputs=submit_btn
     )
 
-demo.launch(share=False, pwa=True)
+demo.launch(share=True, pwa=True)
