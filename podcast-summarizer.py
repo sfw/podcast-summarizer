@@ -12,25 +12,107 @@ from pathlib import Path
 from dotenv import load_dotenv
 from pydub import AudioSegment
 from openai import OpenAI
+from google import genai
 
 ##############################
 # Load environment & logging
 ##############################
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 aai.settings.api_key = ASSEMBLYAI_API_KEY
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
+deepseek_client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
+gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+
 MAX_CHUNK_SIZE = 24 * 1024 * 1024  # ~24 MB
 
 # The user can select any combination of these in the UI:
 SELECTABLE_OPTIONS = ["Summary", "Keywords", "Titles", "Shorts"]
 TRANSCRIPTION_OPTIONS = ["AssemblyAI - Speaker ID", "OpenAI Whisper"]
+
+
+##############################
+# Generic Call to OpenAI Library
+##############################
+def openai_prompt_call(
+        model_data,
+        prompt_text,
+        final_transcript
+):
+    """
+    """
+    prompt_with_transcript = (
+        prompt_text.strip() +
+        f"\n\nTRANSCRIPT:\n{final_transcript}\n"
+    )
+    summary_resp = model_data["client"].chat.completions.create(
+        model=model_data["model"],
+        messages=[{"role": model_data["role"], "content": prompt_with_transcript}],
+        temperature=model_data["temperature"]
+    )
+    return summary_resp.choices[0].message.content.strip()
+
+
+##############################
+# Generic Call to Gemini Library
+##############################
+def gemini_prompt_call(
+        model_data,
+        prompt_text,
+        final_transcript
+):
+    """
+    """
+    prompt_with_transcript = (
+        prompt_text.strip() +
+        f"\n\nTRANSCRIPT:\n{final_transcript}\n"
+    )
+    summary_resp = model_data["client"].models.generate_content(model=model_data["model"], contents = prompt_with_transcript)
+    return summary_resp.text
+
+
+
+ENGINE_OPTIONS = {
+    "OpenAI-o1mini":   {
+                    "function": openai_prompt_call,
+                    "client": openai_client,
+                    "model": "o1-mini",
+                    "temperature": 1,
+                    "role": "user"
+                },
+    # "DeepSeek-V3": {
+    #                 "function": openai_prompt_call,
+    #                 "client": deepseek_client,
+    #                 "model": "deepseek-chat",
+    #                 "temperature": 1,
+    #                 "role": "user"
+    #             },
+    # "DeepSeek-R1": {
+    #                 "function": openai_prompt_call,
+    #                 "client": deepseek_client,
+    #                 "model": "reasoner",
+    #                 "temperature": 1,
+    #                 "role": "user"
+    #             },
+    "Gemini-2.0": {
+                    "function": gemini_prompt_call,
+                    "client": gemini_client,
+                    "model": "gemini-2.0-flash-exp"
+                },  
+    "Gemini-1.5": {
+                    "function": gemini_prompt_call,
+                    "client": gemini_client,
+                    "model": "gemini-1.5-flash"
+                }          
+}
 
 ##############################
 # Audio Splitting & Transcription
@@ -106,6 +188,8 @@ def transcription_request_assembly(chunk_path: str) -> str:
         logger.error(f"Transcription request failed: {e}")
         return f"[Error transcribing chunk: {e}]"
 
+
+
 ##############################
 # Main Processing Function
 ##############################
@@ -116,7 +200,11 @@ def process_audio_files(
     keywords_prompt_text,
     titles_prompt_text,
     shorts_prompt_text,
-    transcription_engine
+    transcription_engine,
+    summary_engine_index,
+    keywords_engine_index,
+    titles_engine_index,
+    shorts_engine_index
 ):
     """
     1. For each uploaded file:
@@ -221,7 +309,7 @@ def process_audio_files(
                 logger.info(f"Transcribing {base_name}, chunk {idx}/{len(chunk_paths)}")
                 yield f"Transcribing {base_name}, chunk {idx}/{len(chunk_paths)}", "", None
                 chunk_text=None;
-                if(transcription_engine==0):
+                if transcription_engine == 0:
                     chunk_text = transcription_request_assembly(cp)
                 else:
                     chunk_text = transcription_request_whisper(cp)
@@ -234,22 +322,20 @@ def process_audio_files(
             final_transcript = "\n".join(transcript_parts)
             (folder_path / "transcript.txt").write_text(final_transcript, encoding="utf-8")
 
+            
+            #model_engine = "o1-mini"  # Adjust as needed
+
+            summary_engine = ENGINE_OPTIONS[summary_engine_index]
+            keywords_engine = ENGINE_OPTIONS[keywords_engine_index]
+            titles_engine = ENGINE_OPTIONS[titles_engine_index]
+            shorts_engine = ENGINE_OPTIONS[shorts_engine_index]
+            
             # (3) Generate Outputs Conditionally
-            model_engine = "o1-mini"  # Adjust as needed
 
             # SUMMARY
             try:
                 if "Summary" in selected_options:
-                    prompt_with_transcript = (
-                        summary_prompt_text.strip() +
-                        f"\n\nTRANSCRIPT:\n{final_transcript}\n"
-                    )
-                    summary_resp = client.chat.completions.create(
-                        model=model_engine,
-                        messages=[{"role": "user", "content": prompt_with_transcript}],
-                        temperature=1
-                    )
-                    summarized_description = summary_resp.choices[0].message.content.strip()
+                    summarized_description = summary_engine["function"](summary_engine,summary_prompt_text,final_transcript)
                     (folder_path / "summary.txt").write_text(summarized_description, encoding="utf-8")
                 else:
                     summarized_description = "[Summary was not generated]"
@@ -261,16 +347,7 @@ def process_audio_files(
             # KEYWORDS
             try:
                 if "Keywords" in selected_options:
-                    prompt_with_transcript = (
-                        keywords_prompt_text.strip() +
-                        f"\n\nTRANSCRIPT:\n{final_transcript}\n"
-                    )
-                    keywords_resp = client.chat.completions.create(
-                        model=model_engine,
-                        messages=[{"role": "user", "content": prompt_with_transcript}],
-                        temperature=1
-                    )
-                    seo_keywords = keywords_resp.choices[0].message.content.strip()
+                    seo_keywords = keywords_engine["function"](keywords_engine,keywords_prompt_text,final_transcript)
                     (folder_path / "keywords.txt").write_text(seo_keywords, encoding="utf-8")
                 else:
                     seo_keywords = "[Keywords were not generated]"
@@ -282,16 +359,7 @@ def process_audio_files(
             # TITLES
             try:
                 if "Titles" in selected_options:
-                    prompt_with_transcript = (
-                        titles_prompt_text.strip() +
-                        f"\n\nTRANSCRIPT:\n{final_transcript}\n"
-                    )
-                    titles_resp = client.chat.completions.create(
-                        model=model_engine,
-                        messages=[{"role": "user", "content": prompt_with_transcript}],
-                        temperature=1
-                    )
-                    video_titles = titles_resp.choices[0].message.content.strip()
+                    video_titles = titles_engine["function"](titles_engine,titles_prompt_text,final_transcript)
                     (folder_path / "titles.txt").write_text(video_titles, encoding="utf-8")
                 else:
                     video_titles = "[Titles were not generated]"
@@ -303,16 +371,7 @@ def process_audio_files(
             # SHORTS
             try:
                 if "Shorts" in selected_options:
-                    prompt_with_transcript = (
-                        shorts_prompt_text.strip() +
-                        f"\n\nTRANSCRIPT:\n{final_transcript}\n"
-                    )
-                    shorts_resp = client.chat.completions.create(
-                        model=model_engine,
-                        messages=[{"role": "user", "content": prompt_with_transcript}],
-                        temperature=1
-                    )
-                    shorts_sections = shorts_resp.choices[0].message.content.strip()
+                    shorts_sections = shorts_engine["function"](shorts_engine,shorts_prompt_text,final_transcript)
                     (folder_path / "shorts.txt").write_text(shorts_sections, encoding="utf-8")
                 else:
                     shorts_sections = "[Shorts were not generated]"
@@ -386,16 +445,6 @@ with gr.Blocks(css=".footer.light {display: none !important;}", title="Podcast A
                 type = "index"
             )
 
-   # Create a row with the "Process" button on top
-    with gr.Row():
-        submit_btn = gr.Button("Process", interactive=False)  # Button initialized as disabled
-
-    # Enable the "Process" button after files are uploaded
-    audio_input.change(
-        fn=lambda files: gr.update(interactive=bool(files)),
-        inputs=audio_input,
-        outputs=submit_btn
-    )
 
     # Under that row, we have four columns for the prompts
     with gr.Row():
@@ -412,6 +461,12 @@ with gr.Blocks(css=".footer.light {display: none !important;}", title="Podcast A
                 ),
                 lines=16
             )
+            summary_prompt_engine = gr.Radio(
+                choices = list(ENGINE_OPTIONS),
+                value = list(ENGINE_OPTIONS)[0],
+                label = "Summarization Model",
+                interactive = True
+            )
         with gr.Column(min_width=240):
             keywords_prompt_text = gr.Textbox(
                 label="Keywords Prompt",
@@ -421,6 +476,12 @@ with gr.Blocks(css=".footer.light {display: none !important;}", title="Podcast A
                 ),
                 lines=16
             )
+            keywords_prompt_engine = gr.Radio(
+                choices = list(ENGINE_OPTIONS),
+                value = list(ENGINE_OPTIONS)[0],
+                label = "Summarization Model",
+                interactive = True
+            )
         with gr.Column(min_width=240):
             titles_prompt_text = gr.Textbox(
                 label="Titles Prompt",
@@ -429,6 +490,12 @@ with gr.Blocks(css=".footer.light {display: none !important;}", title="Podcast A
                     "from this transcript. Return plain text, no markdown, no bold text."
                 ),
                 lines=16
+            )
+            titles_prompt_engine = gr.Radio(
+                choices = list(ENGINE_OPTIONS),
+                value = list(ENGINE_OPTIONS)[0],
+                label = "Summarization Model",
+                interactive = True
             )
         with gr.Column(min_width=240):
             shorts_prompt_text = gr.Textbox(
@@ -441,6 +508,23 @@ with gr.Blocks(css=".footer.light {display: none !important;}", title="Podcast A
                 ),
                 lines=16
             )
+            shorts_prompt_engine = gr.Radio(
+                choices = list(ENGINE_OPTIONS),
+                value = list(ENGINE_OPTIONS)[0],
+                label = "Summarization Model",
+                interactive = True
+            )
+
+    # Create a row with the "Process" button on top
+    with gr.Row():
+        submit_btn = gr.Button("Process", interactive=False)  # Button initialized as disabled
+
+    # Enable the "Process" button after files are uploaded
+    audio_input.change(
+        fn=lambda files: gr.update(interactive=bool(files)),
+        inputs=audio_input,
+        outputs=submit_btn
+    )
 
     status_box = gr.HTML(label="Status")
     html_output = gr.HTML()
@@ -461,7 +545,11 @@ with gr.Blocks(css=".footer.light {display: none !important;}", title="Podcast A
             keywords_prompt_text,
             titles_prompt_text,
             shorts_prompt_text,
-            transcription_engine
+            transcription_engine,
+            summary_prompt_engine,
+            keywords_prompt_engine,
+            titles_prompt_engine,
+            shorts_prompt_engine
         ],
         outputs=[status_box, html_output, download_zip]  # Updated outputs to include download_zip
     ).then(
