@@ -323,8 +323,8 @@ def process_audio_files(
             (folder_path / "transcript.txt").write_text(final_transcript, encoding="utf-8")
 
             
-            #model_engine = "o1-mini"  # Adjust as needed
-
+            
+            # Grab the relevant engine for each query
             summary_engine = ENGINE_OPTIONS[summary_engine_index]
             keywords_engine = ENGINE_OPTIONS[keywords_engine_index]
             titles_engine = ENGINE_OPTIONS[titles_engine_index]
