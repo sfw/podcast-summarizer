@@ -1,7 +1,8 @@
-# Minimum Python version: 3.10+
-requests==2.31.0
-assemblyai==1.0.5
-gradio==3.32.5
-python-dotenv==1.0.0
-pydub==0.25.1
-openai==0.27.8
+requests
+assemblyai
+gradio
+python-dotenv
+pydub
+openai
+google-generativeai
+google-genai
