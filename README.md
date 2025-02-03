@@ -5,7 +5,7 @@ A, mostly built by AI, Python-based tool that:
 
 1.	**Splits** large audio files into ~25 MB chunks.
 2.	**Transcribes** each chunk using AssemblyAI for speaker identification but the code is commented out to use OpenAI whisper if you'd like.
-3.	Optionally uses ChatGPT to generate:
+3.	Optionally uses an AI model of your choice to generate:
 	- **Summaries**
 	- **Keywords**
 	- **Titles**
@@ -22,7 +22,8 @@ A, mostly built by AI, Python-based tool that:
 -	Python 3.10+
 -	See requirements.txt for package versions.
 -	OpenAI API account + credits
--   Assembly API account + credits (optional)
+-	Assembly API account + credits (optional)
+-	Google Gemini API account + credits (optional)
 
 ## Setup
 1.	Clone or download this repository.
@@ -36,6 +37,8 @@ pip install -r requirements.txt
 ```
 OPENAI_API_KEY=sk-123abc...
 ASSEMBLYAI_API_KEY=12341234...
+GEMINI_API_KEY=AIabc...
+DEEPSEEK_API_KEY=
 ```
 
 4.	Install ffmpeg if you haven’t (pydub requires ffmpeg to process most audio formats).
@@ -84,12 +87,7 @@ ASSEMBLYAI_API_KEY=12341234...
                 lines=8
             )
 ```
-6. Change OpenAI model if preferred
-
-```
-model_engine = "o1-mini"
-```
-7. Change the transcription engine if you prefer. There are two engines in the code setup through two definitions of the *transcription_request* function. The uncommented version uses AssemblyAI to do speaker by speaker transcription and the commented out version doesn't but uses OpenAI's Whisper engine. Changing engines is as simple as commenting out the current function and uncommenting out the the other.
+6. Define any other AI model you prefer (currently OpenAI/DeepSeek and Google Models are supported)
 
 ## Usage
 1.	Run the script:
@@ -103,9 +101,11 @@ Running on local URL:  http://127.0.0.1:7860
 ```
 3.	Open the link in your browser to access the Gradio interface.
 4.	Upload one or more audio files.
-5.	Optionally edit the prompts for Summary, Keywords, and Titles.
-6.	Click “Process” to start transcription and GPT generation.
-7.	Once complete, you can download the outputs as a ZIP via the link in the status field.
+5.	Select a transcription engine.
+6.	Optionally, edit the prompts for Summary, Keywords, and Titles.
+7.	Optionally, select the engine/model you'd prefer for each prompt.
+8.	Click “Process” to start transcription and GPT generation.
+9.	Once complete, you can download the outputs as a ZIP via the link.
 
 ## Repository Structure
 - podcast_summarizer.py – Main Python script with Gradio UI.
@@ -126,5 +126,6 @@ MIT License
 - [OpenAI](https://openai.com/) for the Whisper and ChatGPT APIs.
 - [Pydub](https://github.com/jiaaro/pydub) for audio processing.
 - [AssemblyAI](https://www.assemblyai.com/) for audio transcription with speaker ID.
+- [Google Genai](https://ai.google.dev/gemini-api/docs/sdks) for Google Gemini Models.
 
 # Happy summarizing!
