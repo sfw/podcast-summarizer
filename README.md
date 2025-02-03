@@ -4,7 +4,7 @@ Using AI to facilitate the BS tasks in my life - Part I
 A, mostly built by AI, Python-based tool that:
 
 1.	**Splits** large audio files into ~25 MB chunks.
-2.	**Transcribes** each chunk using AssemblyAI for speaker identification but the code is commented out to use OpenAI whisper if you'd like.
+2.	**Transcribes** each chunk using either AssemblyAI for speaker identification or OpenAI Whisper which you select in the interface.
 3.	Optionally uses an AI model of your choice to generate:
 	- **Summaries**
 	- **Keywords**
@@ -21,7 +21,7 @@ A, mostly built by AI, Python-based tool that:
 ## Requirements
 -	Python 3.10+
 -	See requirements.txt for package versions.
--	OpenAI API account + credits
+-	OpenAI API account + credits (optional)
 -	Assembly API account + credits (optional)
 -	Google Gemini API account + credits (optional)
 
@@ -127,5 +127,6 @@ MIT License
 - [Pydub](https://github.com/jiaaro/pydub) for audio processing.
 - [AssemblyAI](https://www.assemblyai.com/) for audio transcription with speaker ID.
 - [Google Genai](https://ai.google.dev/gemini-api/docs/sdks) for Google Gemini Models.
+- [FFmpeg](https://www.ffmpeg.org/) for media processing.
 
 # Happy summarizing!
