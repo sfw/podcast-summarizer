@@ -6,3 +6,4 @@ pydub
 openai
 google-generativeai
 google-genai
+gradio_modal
