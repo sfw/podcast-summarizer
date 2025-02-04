@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from pydub import AudioSegment
 from openai import OpenAI
 from google import genai
+from prompt_refine_lib import add_prompt_refinement_modal
 
 ##############################
 # Load environment & logging
@@ -452,15 +453,29 @@ with gr.Blocks(css=".footer.light {display: none !important;}", title="Podcast A
             summary_prompt_text = gr.Textbox(
                 label="Summary Prompt",
                 value=(
-                    "Provide me a summarized description of this transcript from a podcast episode "
-                    "for a video description. Make the length reasonable but as long as you need to "
-                    "be detailed. Focus on including keywords in the summary that would impact SEO, "
-                    "but do not add a separate list of explicit keywords. Return plain text, no markdown, no bold text.\n\n"
-                    "Also, be aware the proper spelling for the two hosts' names are "
-                    "Jordan Bloemen and Scott Francis Winder."
+                    "Provide a three to four paragraph summary of this podcast episode transcript for a YouTube video description." 
+                    "The summary should be crafted to appeal to both interested YouTube viewers and search engine algorithms like " 
+                    "Google's and YouTube's crawlers. Extract and emphasize the key themes and topics from the transcript, ensuring " 
+                    "the correct spelling of the hosts' names: Jordan Bloemen and Scott Francis Winder.\n\n"
+
+                    "The tone should build intrigue and create a desire for viewers to watch the video, without revealing all the content." 
+                    "Incorporate relevant keywords naturally within the summary to enhance SEO, focusing on terms that will help the video " 
+                    "appear in search recommendations. Do not include a separate list of keywords or use markdown, bold text, or any " 
+                    "additional formatting. Return the summary as plain text composed of well-structured paragraphs."
+                    
                 ),
                 lines=16
             )
+
+            add_prompt_refinement_modal(
+                blocks=gr,
+                openai_client=openai_client,
+                main_prompt_textbox=summary_prompt_text,
+                model="o1-mini",
+                temperature=1,
+                refine_button_label="Refine Prompt"
+            )
+
             summary_prompt_engine = gr.Radio(
                 choices = list(ENGINE_OPTIONS),
                 value = list(ENGINE_OPTIONS)[0],
@@ -471,11 +486,25 @@ with gr.Blocks(css=".footer.light {display: none !important;}", title="Podcast A
             keywords_prompt_text = gr.Textbox(
                 label="Keywords Prompt",
                 value=(
-                    "From the following transcript, provide a comma-separated list of top relevant keywords "
-                    "that would improve SEO. Focus on main subjects and terms. Return plain text, no markdown, no bold text."
+                    "From the following transcript, provide a comma-separated list of unique primary keywords " 
+                    "and keyword phrases that would improve SEO for YouTube videos. Ensure the total length of " 
+                    "the comma-separated keywords is less than 500 characters. Focus on the main subjects and " 
+                    "terms with high search volume and searchability. Analyze the entire transcript and include " 
+                    "both single keywords and multi-word phrases without excluding essential keywords. Return the " 
+                    "list as plain text with regular characters, separated by commas without any markdown or bold formatting."
                 ),
                 lines=16
             )
+
+            add_prompt_refinement_modal(
+                blocks=gr,
+                openai_client=openai_client,
+                main_prompt_textbox=keywords_prompt_text,
+                model="o1-mini",
+                temperature=1,
+                refine_button_label="Refine Prompt"
+            )
+            
             keywords_prompt_engine = gr.Radio(
                 choices = list(ENGINE_OPTIONS),
                 value = list(ENGINE_OPTIONS)[0],
@@ -486,11 +515,23 @@ with gr.Blocks(css=".footer.light {display: none !important;}", title="Podcast A
             titles_prompt_text = gr.Textbox(
                 label="Titles Prompt",
                 value=(
-                    "Provide five short video thumbnail title recommendations (max 6 words each) "
-                    "from this transcript. Return plain text, no markdown, no bold text."
+                    "Using the transcript provided below, generate five video thumbnail title " 
+                    "recommendations. Each title should be 5 to 6 words long, designed to build " 
+                    "intrigue and encourage YouTube users to watch the video. Ensure the output is " 
+                    "plain text only, without any markdown or bold formatting."
                 ),
                 lines=16
             )
+
+            add_prompt_refinement_modal(
+                blocks=gr,
+                openai_client=openai_client,
+                main_prompt_textbox=titles_prompt_text,
+                model="o1-mini",
+                temperature=1,
+                refine_button_label="Refine Prompt"
+            )
+
             titles_prompt_engine = gr.Radio(
                 choices = list(ENGINE_OPTIONS),
                 value = list(ENGINE_OPTIONS)[0],
@@ -501,13 +542,27 @@ with gr.Blocks(css=".footer.light {display: none !important;}", title="Podcast A
             shorts_prompt_text = gr.Textbox(
                 label="Shorts Prompt",
                 value=(
-                    "Here is a transcript for a podcast episode. Can you pull out three sections of it that "
-                    "would make good 10-15 second shorts or clips for social sharing. Focus on content that "
-                    "will be understandable without the context of the complete episode but also interesting."
-                    "Return plain text, no markdown, no bold text."
+                    "Here is a transcript for a podcast episode. Please extract up to five of the highest " 
+                    "quality sections that would make good 10-15 second shorts or clips for social sharing. " 
+                    "The clips can be inspirational, humorous, or informative. Each clip should:"
+                    "- Stand alone without requiring context from the complete episode"
+                    "- Build intrigue to encourage viewers to engage with the full content"
+                    "- Make a single point and be easily consumable on its own\n\n"
+                    "Return the clips in plain text without any markdown, bolding, or formatting. " 
+                    "Please list the clips in the order they appear chronologically within the transcript."
                 ),
                 lines=16
             )
+
+            add_prompt_refinement_modal(
+                blocks=gr,
+                openai_client=openai_client,
+                main_prompt_textbox=shorts_prompt_text,
+                model="o1-mini",
+                temperature=1,
+                refine_button_label="Refine Prompt"
+            )
+
             shorts_prompt_engine = gr.Radio(
                 choices = list(ENGINE_OPTIONS),
                 value = list(ENGINE_OPTIONS)[0],
@@ -558,4 +613,4 @@ with gr.Blocks(css=".footer.light {display: none !important;}", title="Podcast A
         outputs=submit_btn
     )
 
-demo.launch(share=True, pwa=True)
+demo.launch(share=False, pwa=True)
